@@ -40,6 +40,28 @@ mpz_class mod_inverse(mpz_class a, mpz_class m) {
     return x1;
 }
 
+std::string mpzClassToLittleEndianHex(const mpz_class& number) {
+    // Calculer la taille nécessaire pour stocker le nombre en little-endian
+    size_t size = mpz_sizeinbase(number.get_mpz_t(), 256);
+
+    // Allouer un tableau pour contenir le nombre en little-endian
+    unsigned char* buffer = new unsigned char[size];
+
+    // Exporter le nombre en little-endian
+    mpz_export(buffer, nullptr, -1, 1, -1, 0, number.get_mpz_t());
+
+    // Construire la représentation little-endian hexadécimale
+    std::string result;
+    for (size_t i = 0; i < size; ++i) {
+        char hexByte[3];
+        sprintf(hexByte, "%02x", buffer[i]);
+        result += hexByte;
+    }
+
+    delete[] buffer;  // N'oubliez pas de libérer la mémoire
+
+    return result;
+}
 
 int main() {
     std::string a1 = "d3";
@@ -68,6 +90,9 @@ int main() {
     std::string n_str = n.get_str(16);
     std::string d_str = d.get_str(16);
 
+    std::string fflol = mpzClassToLittleEndianHex(n);
+
+    std::string dzkihfdk = mpzClassToLittleEndianHex(d);
 
     std::string test1 = "bb";
     std::string test2 = "19";
@@ -81,9 +106,10 @@ int main() {
     std::cout << "test: " << mpz_sizeinbase(test.get_mpz_t(), 2) << " bits" << std::endl;
     std::cout << "test3: " << mpz_sizeinbase(test3.get_mpz_t(), 2) << " bits" << std::endl;
 
+    mpz_class triedString;
 
-    std::cout << "Public Key: " << e_str << "-" << n_str << std::endl;
-    std::cout << "Private Key: " << d_str << "-" << n_str << std::endl;
+    std::cout << "Public Key: " << e_str << "-" << fflol << std::endl;
+    std::cout << "Private Key: " << dzkihfdk << "-" << fflol << std::endl;
 
     return 0;
 }
