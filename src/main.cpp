@@ -5,30 +5,10 @@
 ** main.cpp
 */
 
-#include <iostream>
-#include <string>
-#include <getopt.h>
 #include "parser/Parser.hpp"
-#include "include/struct.h"
-#include <sstream>
-#include <iomanip>
-
-/*
-USAGE
-      ./mypgp [-xor | -aes | -rsa] [-c | -d] [-b] KEY
-      the MESSAGE is read from standard input
-DESCRIPTION
-      -xor       computation using XOR algorithm
-      -aes       computation using AES algorithm
-      -rsa       computation using RSA algorithm
-      -pgp       computation using both RSA and AES algorithm
-      -c         MESSAGE is clear and we want to cipher it
-      -d         MESSAGE is ciphered and we want to decipher it
-      -b         block mode: for xor and aes, only works on one block
-                 MESSAGE and KEY must be of the same size
-      -g P Q     for RSA only: generate a public and private key
-                 pair from the prime number P and Q
-*/
+#include "algo/xor.cpp"
+#include "algo/aes.cpp"
+#include "algo/rsa.cpp"
 
 void printHelp() {
     std::cout << "USAGE" << std::endl;
@@ -67,66 +47,46 @@ Arguments parseArguments(int ac, char **av) {
         printHelp();
         exit(84);
     }
+
     Arguments args_s;
     args_s.blockMode = parser.isArg("b");
     args_s.algorithm = algorithm;
-    args_s.key = parser.getNextArg("b");
+    args_s.key = parser.getKeyArg("b");
+
+    if (args_s.key == "" && algorithm != "rsa") {
+        printHelp();
+        exit(84);
+    }
+
+    args_s.rsa_generation = parser.isArg("g");
+    if (args_s.rsa_generation == true && algorithm == "rsa")
+        parser.getRsaArgs(args_s.rsa_arg1, args_s.rsa_arg2);
+
     args_s.generate = parser.isArg("c");
     return args_s;
-}
-
-std::string hexToBin(std::string hex) {
-    std::string result;
-    for (int i = 0; i < hex.size(); i += 2) {
-        std::string byte = hex.substr(i, 2);
-        char chr = (char) (int) strtol(byte.c_str(), NULL, 16);
-        result += chr;
-    }
-    return result;
-}
-
-std::string binToHex(std::string bin) {
-    std::string result;
-    for (int i = 0; i < bin.size(); i++) {
-        char chr = bin[i];
-        std::string byte = std::to_string((int) chr);
-        result += byte;
-    }
-    return result;
-}
-
-std::string intToHex(unsigned char intValue) {
-    std::stringstream stream;
-    stream << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(intValue);
-    return stream.str();
-}
-
-std::string stringToHex(std::string str) {
-    std::string result;
-    for (int i = 0; i < str.size(); i++) {
-        char chr = str[i];
-        std::string byte = std::to_string((int) chr);
-        result += byte;
-    }
-    return result;
-}
-
-std::string calcXor(Arguments args, std::string message) {
-    std::string result;
-    message = hexToBin(message);
-    args.key = hexToBin(args.key);
-    for (int i = 0; i < message.size(); i++) {
-        char xorResult = message[i] ^ args.key[i];
-        result += intToHex(static_cast<unsigned char>(xorResult));
-    }
-    return result;
 }
 
 int main(int ac, char **av) {
     Arguments args = parseArguments(ac, av);
     std::string line;
+
+    if (args.rsa_generation == true && args.algorithm == "rsa") {
+        std::cout << rsaKeyGen(args) << std::endl;
+        return 0;
+    }
     while (std::getline(std::cin, line)) {
-        std::cout << calcXor(args, line) << std::endl;
+        if (args.blockMode && (args.key.size() != line.size())) {
+            std::cerr << "Key size must be the same as the message size" << std::endl;
+            exit(84);
+        }
+        if (args.algorithm == "xor")
+            std::cout << calcXor(args, line) << std::endl;
+        if (args.algorithm == "aes")
+            std::cout << calcAes(args, line) << std::endl;
+        if (args.algorithm == "rsa")
+            std::cout << calcRsa(args, line) << std::endl;
+        if (args.algorithm == "pgp")
+            std::cout << "PGP" << std::endl;
     }
     return 0;
 }
