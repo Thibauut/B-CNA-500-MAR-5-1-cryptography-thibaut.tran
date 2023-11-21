@@ -9,6 +9,7 @@
 #include "algo/xor.cpp"
 #include "algo/aes.cpp"
 #include "algo/rsa.cpp"
+#include "algo/pgp.cpp"
 
 void printHelp() {
     std::cout << "USAGE" << std::endl;
@@ -43,6 +44,9 @@ Arguments parseArguments(int ac, char **av) {
     } else if (parser.isArg("rsa")) {
         algorithm = "rsa";
         args = parser.getArg("rsa");
+    } else if (parser.isArg("pgp")) {
+        algorithm = "pgp";
+        args = parser.getArg("pgp");
     } else {
         printHelp();
         exit(84);
@@ -53,7 +57,7 @@ Arguments parseArguments(int ac, char **av) {
     args_s.algorithm = algorithm;
     args_s.key = parser.getKeyArg("b");
 
-    if (args_s.key == "" && algorithm != "rsa") {
+    if (args_s.key == "" && algorithm != "rsa" && algorithm != "pgp") {
         printHelp();
         exit(84);
     }
@@ -63,6 +67,10 @@ Arguments parseArguments(int ac, char **av) {
         parser.getRsaArgs(args_s.rsa_arg1, args_s.rsa_arg2);
 
     args_s.generate = parser.isArg("c");
+    if (args_s.rsa_generation == false && args_s.generate == true && args_s.key == "")
+         args_s.key = parser.getNextArg("c");
+    if (args_s.rsa_generation == false && args_s.generate == false && args_s.key == "")
+         args_s.key = parser.getNextArg("d");
     return args_s;
 }
 
@@ -71,11 +79,11 @@ int main(int ac, char **av) {
     std::string line;
 
     if (args.rsa_generation == true && args.algorithm == "rsa") {
-        std::cout << rsaKeyGen(args) << std::endl;
+        rsaKeyGen(args);
         return 0;
     }
     while (std::getline(std::cin, line)) {
-        if (args.blockMode && (args.key.size() != line.size())) {
+        if ((args.algorithm == "xor" || args.algorithm == "aes") && args.blockMode == true && (args.key.size() != line.size())) {
             std::cerr << "Key size must be the same as the message size" << std::endl;
             exit(84);
         }
@@ -86,7 +94,7 @@ int main(int ac, char **av) {
         if (args.algorithm == "rsa")
             std::cout << calcRsa(args, line) << std::endl;
         if (args.algorithm == "pgp")
-            std::cout << "PGP" << std::endl;
+            std::cout << calcPgp(args, line) << std::endl;
     }
     return 0;
 }

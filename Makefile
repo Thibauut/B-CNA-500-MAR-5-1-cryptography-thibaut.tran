@@ -12,7 +12,7 @@ NAME	=	mypgp
 all:	$(NAME)
 
 $(NAME):
-	g++ src/main.cpp -o $(NAME) -g3 -std=c++17 -lgmpxx -lgmp
+	g++ src/main.cpp -o $(NAME) -g3 -std=c++17 -lgmpxx -lgmp -lssl -lcrypto
 
 
 clean:
