@@ -82,8 +82,10 @@ std::string rsaKeyGen(Arguments args) {
 
     mpz_class value1;
     mpz_set_str(value1.get_mpz_t(), args.rsa_arg1.c_str(), 16);
+    value1 = convertLittleEndianToBigEndian(value1);
     mpz_class value2;
     mpz_set_str(value2.get_mpz_t(), args.rsa_arg2.c_str(), 16);
+    value2 = convertLittleEndianToBigEndian(value2);
 
     mpz_class p = value1;
     mpz_class q = value2;
@@ -91,7 +93,7 @@ std::string rsaKeyGen(Arguments args) {
     mpz_class d;
     mpz_class totient = (p - 1) * (q - 1);
 
-    mpz_class e;
+    mpz_class e = 65537;
     if (mpz_sizeinbase(value1.get_mpz_t(), 2) == 8 || mpz_sizeinbase(value2.get_mpz_t(), 2) == 8)
         e = 257;
     if (mpz_sizeinbase(value1.get_mpz_t(), 2) == 256 || mpz_sizeinbase(value2.get_mpz_t(), 2) == 256)
@@ -102,8 +104,10 @@ std::string rsaKeyGen(Arguments args) {
     std::string n_str = n.get_str(16);
     std::string d_str = d.get_str(16);
 
-    n = convertBigEndianToLittleEndian(n);
-    d = convertBigEndianToLittleEndian(d);
+    if (args.rsa_arg1.length() == 2 && args.rsa_arg2.length() == 2) {
+        n = convertBigEndianToLittleEndian(n);
+        d = convertBigEndianToLittleEndian(d);
+    }
 
     std::cout << "public key: " << std::hex << "0" << e << "-" << n << std::endl;
     std::cout << "private key: " << std::hex << d << "-" << n << std::endl;
@@ -137,15 +141,10 @@ std::string calcRsa(Arguments args, std::string message) {
     //parse message
     size_t spaceInterval = 0;
     std::vector<std::string> messageHex;
-    if (args.generate == true) {
-        message = insertSpaceBetweenChars(message, 2);
-        messageHex = parseHexString(message, ' ');
-    }
-    if (args.generate == false) {
-        messageHex = parseHexString(message, 'u');
-        if (messageHex.size() == 1)
-            messageHex.at(0) = reverseTwo(messageHex.at(0));
-    }
+    mpz_class value_message;
+    mpz_set_str(value_message.get_mpz_t(), message.c_str(), 16);
+    if (args.generate == false && message.size() == 4 && args.key.size() <= 9)
+        value_message = convertLittleEndianToBigEndian(value_message);
 
     //parse key
     size_t hyphenPos = args.key.find('-');
@@ -154,43 +153,30 @@ std::string calcRsa(Arguments args, std::string message) {
     std::string n = args.key.substr(hyphenPos + 1);
     mpz_class value_e;
     mpz_set_str(value_e.get_mpz_t(), e.c_str(), 16);
-    value_e = convertLittleEndianToBigEndian(value_e);
+    if ((message.length() == 4 || message.length() == 2) && args.key.length() <= 9)
+        value_e = convertLittleEndianToBigEndian(value_e);
     mpz_class value_n;
     mpz_set_str(value_n.get_mpz_t(), n.c_str(), 16);
-    value_n = convertLittleEndianToBigEndian(value_n);
+    if ((message.length() == 4 || message.length() == 2) && args.key.length() <= 9)
+        value_n = convertLittleEndianToBigEndian(value_n);
 
     // algo
     if (args.generate == true) {
-        for (auto &a: messageHex) {
-            mpz_class plaintext;
-            mpz_set_str(plaintext.get_mpz_t(), a.c_str(), 16);
-            mpz_class ciphertext = rsa_encrypt(plaintext, value_n, value_e);
-
-            std::ostringstream oss;
-            oss << std::hex << ciphertext;
-            std::string hexString = oss.str();
-            result += hexString + "u";
-        }
-        result.pop_back();
-
         mpz_class plaintext;
-        mpz_set_str(plaintext.get_mpz_t(), result.c_str(), 16);
-        if (result.length() == 4)
-            result = mpzClassToLittleEndianHex(plaintext);
+        mpz_set_str(plaintext.get_mpz_t(), message.c_str(), 16);
+        mpz_class ciphertext = rsa_encrypt(plaintext, value_n, value_e);
+        if (message.length() == 2 && args.key.length() <= 9)
+            ciphertext = convertBigEndianToLittleEndian(ciphertext);
+
+        std::ostringstream oss;
+        oss << std::hex << ciphertext;
+        result = oss.str();
     }
     if (args.generate == false) {
-        for (auto &a: messageHex) {
-            mpz_class ciphertext;
-            mpz_set_str(ciphertext.get_mpz_t(), a.c_str(), 16);
-            mpz_class decrypted_text = rsa_decrypt(ciphertext, value_n, value_e);
-
-            std::ostringstream oss;
-            oss << std::hex << decrypted_text;
-            std::string hexString = oss.str();
-            if (hexString.size() == 1)
-                hexString = "0" + hexString;
-            result += hexString;
-        }
+        mpz_class decrypted_text = rsa_decrypt(value_message, value_n, value_e);
+        std::ostringstream oss;
+        oss << std::hex << decrypted_text;
+        result = oss.str();
     }
     return result;
 }

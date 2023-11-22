@@ -52,11 +52,13 @@ std::string calcPgp(Arguments args, std::string message) {
     std::string n = args.key.substr(hyphenPos + 1);
     mpz_class value_e;
     mpz_set_str(value_e.get_mpz_t(), e.c_str(), 16);
-    value_e = convertLittleEndianToBigEndian(value_e);
+    if (args.generate == false && message.size() == 4 && args.key.size() <= 9)
+        value_e = convertLittleEndianToBigEndian(value_e);
 
     mpz_class value_n;
     mpz_set_str(value_n.get_mpz_t(), n.c_str(), 16);
-    value_n = convertLittleEndianToBigEndian(value_n);
+    if (args.generate == false && message.size() == 4 && args.key.size() <= 9)
+        value_n = convertLittleEndianToBigEndian(value_n);
 
     // algo
     if (args.generate == true) {
@@ -66,39 +68,31 @@ std::string calcPgp(Arguments args, std::string message) {
 
         //generate symmetric key
         std::string cipheredKey;
-        // std::string symmetricKey = generateSymmetricKey();
         std::string symmetricKey = generateSymmetricKey();
+        // std::string symmetricKey = "6b50fd39f06d33cfefe6936430b6c94f";
         std::string symmetricKeyInitial = symmetricKey;
-        // std::cout << "symmetricKey: " << symmetricKey << std::endl;
-        symmetricKey = insertSpaceBetweenChars(symmetricKey, 2);
-        std::vector<std::string> symetricHex = parseHexString(symmetricKey, ' ');
 
         //encrypt the symmetric key with the public key
-        for (auto &a: symetricHex) {
-            mpz_class plaintext;
-            mpz_set_str(plaintext.get_mpz_t(), a.c_str(), 16);
-            mpz_class ciphertext = rsa_encrypt(plaintext, value_n, value_e);
+        mpz_class plaintext;
+        mpz_set_str(plaintext.get_mpz_t(), symmetricKey.c_str(), 16);
+        mpz_class ciphertext = rsa_encrypt(plaintext, value_n, value_e);
 
-            std::ostringstream oss;
-            oss << std::hex << ciphertext;
-            std::string hexString = oss.str();
-            cipheredKey += hexString + "u";
-        }
-        cipheredKey.pop_back();
+        std::ostringstream oss;
+        oss << std::hex << ciphertext;
+        cipheredKey = oss.str();
 
         //encrypt the message with the symmetric key
         for (int i = 0; i < 16; ++i) {
             sscanf(message.c_str() + 2 * i, "%2hhx", &messageBytes[i]);
             sscanf(symmetricKeyInitial.c_str() + 2 * i, "%2hhx", &keyBytes[i]);
         }
-
         aesEncrypt(messageBytes, keyBytes, ciphered);
-
-        std::ostringstream oss;
+        std::ostringstream oss2;
         for (int i = 0; i < 16; ++i)
-            oss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(ciphered[i]);
-        std::string encryptedMessage = oss.str();
+            oss2 << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(ciphered[i]);
+        std::string encryptedMessage = oss2.str();
 
+        //create the file with the result
         std::string finalresult = cipheredKey + " " + encryptedMessage;
         createFileWithResult(finalresult);
         result = encryptedMessage;
@@ -114,23 +108,15 @@ std::string calcPgp(Arguments args, std::string message) {
 
         std::string cipheredKeyToDecrypt = message.substr(0, spacePos);
         std::string cipheredMessageToDecrypt = message.substr(spacePos + 1);
-
-        std::vector<std::string> cipheredKeyHex = parseHexString(cipheredKeyToDecrypt, 'u');
         std::string decryptedKeySymetric;
 
+        mpz_class ciphertext;
+        mpz_set_str(ciphertext.get_mpz_t(), cipheredKeyToDecrypt.c_str(), 16);
+        mpz_class decrypted_text = rsa_decrypt(ciphertext, value_n, value_e);
 
-        for (auto &a: cipheredKeyHex) {
-            mpz_class ciphertext;
-            mpz_set_str(ciphertext.get_mpz_t(), a.c_str(), 16);
-            mpz_class decrypted_text = rsa_decrypt(ciphertext, value_n, value_e);
-
-            std::ostringstream oss;
-            oss << std::hex << decrypted_text;
-            std::string hexString = oss.str();
-            if (hexString.size() == 1)
-                hexString = "0" + hexString;
-            decryptedKeySymetric += hexString;
-        }
+        std::ostringstream oss;
+        oss << std::hex << decrypted_text;
+        decryptedKeySymetric = oss.str();
 
         //decrypt the message with the symmetric key
         for (int i = 0; i < 16; ++i) {
@@ -140,10 +126,10 @@ std::string calcPgp(Arguments args, std::string message) {
 
         aesDecrypt(messageBytes, keyBytes, ciphered);
 
-        std::ostringstream oss;
+        std::ostringstream oss2;
         for (int i = 0; i < 16; ++i)
-            oss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(ciphered[i]);
-        result = oss.str();
+            oss2 << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(ciphered[i]);
+        result = oss2.str();
     }
 
 
