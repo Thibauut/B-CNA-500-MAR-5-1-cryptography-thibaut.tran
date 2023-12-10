@@ -9,7 +9,7 @@ The goal of this project is to code several type of encryption and decryption.
       ./mypgp [-xor | -aes | -rsa | -pgp] [-c | -d] [-b] KEY
       the MESSAGE is read from standard input
 DESCRIPTION
-  - xor computation using XOR algorithm
+  -xor computation using XOR algorithm
   -aes computation using AES algorithm
   -rsa computation using RSA algorithm
   -pgp computation using both RSA and AES algorithm
