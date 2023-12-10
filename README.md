@@ -16,5 +16,5 @@ DESCRIPTION
   -c MESSAGE is clear and we want to cipher it
   -d MESSAGE is ciphered and we want to decipher it
   -b block mode: for xor and aes, only works on one block MESSAGE and KEY must be of the same size
-  -gP Q for RSA only: generate a public and private key pair from the prime number P and Q
+  -g P Q for RSA only: generate a public and private key pair from the prime number P and Q
 ```
